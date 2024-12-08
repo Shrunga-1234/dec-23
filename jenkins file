@@ -1,0 +1,107 @@
+ci-job
+
+pipeline{
+    agent any
+    stages{
+        stage('clone'){
+            steps{
+                git branch: 'main', credentialsId: 'gitCred', url: 'https://github.com/Siddeshg672/hello_world_public_war.git'
+            }
+        }
+        // stage('soanr'){
+        //     steps{
+        //         withSonarQubeEnv('sonar') {
+        //             sh "mvn clean verify sonar:sonar -Dsonar.projectKey=ci"
+        //         }
+        //     }
+        // }
+        stage('compile source code'){
+            steps{
+                sh "mvn clean install"
+                sh "cp ${WORKSPACE}/webapp/target/webapp.war webapp-${BUILD_NUMBER}.war"
+            }
+        }
+        // stage ('Upload file') {
+        //     steps {
+        //         rtUpload (
+        //             // Obtain an Artifactory server instance, defined in Jenkins --> Manage Jenkins --> Configure System:
+        //             serverId: "jfrog",
+        //             spec: """{
+        //                     "files": [
+        //                             {
+        //                                 "pattern": "webapp-${BUILD_NUMBER}.war",
+        //                                 "target": "libs-snapshot-local"
+        //                             }
+        //                         ]
+        //                     }"""
+        //         )
+        //     }
+        // }
+        stage('docker image creation'){
+            // when { expression { action == 'closed' }}
+            steps{
+                sh "docker build -t test-image-creation:1.0 -f Dockerfile ."
+            }
+        }
+        stage('publish image to docker repo'){
+            // when { expression { action == 'closed' }}
+            steps{
+                withCredentials([usernamePassword(credentialsId: 'docker', passwordVariable: 'pass', usernameVariable: 'user')]) {
+                    sh "docker login -u ${user} -p ${pass}"
+                    sh "docker tag test-image-creation:1.0 siddeshg672/testdeployimage:jan-${BUILD_NUMBER}"
+                    sh "docker push siddeshg672/testdeployimage:jan-${BUILD_NUMBER}"
+                }
+            }
+        }
+        stage('trigger cd job'){
+            steps{
+                sh "curl -v -k --user darshan:11df0a7bccaea1610fc94befa74ad26328 -X POST -H 'cache-control: no-cache' -H 'content-type: application/x-www-form-urlencoded' --data 'tag=jan-${BUILD_NUMBER}' 'http://54.211.76.148:8080/job/cd-docker/buildWithParameters?token=56htGXWER68234jhasjhljTRuhil89qr0test'"
+            }
+        }
+    }
+}
+
+
+cd-docker
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Hello') {
+            steps {
+                script{
+                echo 'Hello World'
+                withCredentials([usernamePassword(credentialsId: 'docker', passwordVariable: 'password', usernameVariable: 'username')]) {
+                
+                sshagent(credentials : ['jenkins']) {
+
+                    sh """   ssh -o StrictHostKeyChecking=no ubuntu@35.173.136.205 << 'EOF'
+                    docker login -u ${username} -p ${password}
+                    docker pull siddeshg672/testdeployimage:${tag}
+                    docker rm my-test -f
+                    echo 'test'
+                    docker run -itd --name my-test -p 8089:8080 siddeshg672/testdeployimage:${tag}
+                    echo 'start'
+                    
+                            
+EOF
+            """
+		                   }
+                }
+                // print tag
+                // withCredentials([usernamePassword(credentialsId: 'docker', passwordVariable: 'password', usernameVariable: 'username')]) {
+                //     sh "docker login -u ${username} -p ${password}"
+                //     sh "docker pull siddeshg672/testdeployimage:${tag}"
+                //     try{
+                //         sh "docker rm my-test -f"
+                //     }catch(Exception e){
+                //         echo "container is not present"
+                //     }
+                //     sh "docker run -itd --name my-test -p 8089:8080 siddeshg672/testdeployimage:${tag}"
+                // }
+                }
+            }
+        }
+    }
+}
