@@ -1,0 +1,160 @@
+pipeline {
+    agent any
+    triggers{
+cron('* * * * *')        
+pollscm('* * * * *')
+    }
+    stages {
+        stage('Hello') {
+            steps {
+                echo 'Hello World'
+            }
+        }
+    }
+}
+
+
+def java = 'java version is 1.0.3'
+pipeline{
+    agent any
+    triggers{
+        cron('* * * * *')
+    }
+    environment{
+        mvn = 'The version of mvn is 10.0.1'
+        xyz = 'The version of xyz is 20.0.1'
+    }
+    stages{
+        stage('build'){
+            steps{
+                script{
+                if ( "$abc" == 'true' ){
+                    sh "echo ${mvn}"
+                    build('sampleTrigger1')
+                }
+                else{
+                 sh  "echo ${xyz}"
+                 print java
+                 build('sampleTrigger2')
+                }
+            }
+            }
+        }
+    }
+}
+pipeline {
+    agent any
+    
+    stages {
+        stage('parallel build'){
+            parallel{
+                stage('Hello') {
+                    steps {
+                    echo 'Hello World'
+                    }
+                }
+                stage('test'){
+                    steps{
+                        echo 'test'
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+def java = 'java version is 1.0.3'
+def mvn = 'The version of mvn is 10.0.1'
+def xyz = 'The version of xyz is 20.0.1'
+pipeline{
+    agent any
+    stages{
+        stage('build'){
+            when { expression { "${params.env}" == 'qa' }}
+            steps{
+                script{
+                echo 'qa deployemnt'
+            }
+            }
+        }
+        stage('build1'){
+            when { expression { params.env == 'uat' }}
+            steps{
+                echo 'uat deployemnt'
+            }
+        }
+    }
+}
+
+
+def java = 'java version is 1.0.3'
+pipeline{
+    agent any
+    
+    environment{
+        mvn = 'The version of mvn is 10.0.1'
+        xyz = 'The version of xyz is 20.0.1'
+    }
+    stages{
+        stage('build'){
+            when { expression { "${params.env}" == 'qa' }}
+            steps{
+                script{
+                echo 'qa deployemnt'
+            }
+            }
+        }
+        stage('build1'){
+            when { expression { params.env == 'uat' }}
+            steps{
+                echo 'uat deployemnt'
+            }
+        
+        post{
+        success{
+            build('sampleTrigger2')
+        }
+        }
+    }
+    }
+}
+
+
+def java = 'java version is 1.0.3'
+pipeline{
+    agent any
+    
+    environment{
+        mvn = 'The version of mvn is 10.0.1'
+        xyz = 'The version of xyz is 20.0.1'
+    }
+    stages{
+        stage('build'){
+            when { expression { "${params.env}" == 'qa' }}
+            steps{
+                script{
+                try{
+                
+                echo 'qa deployemnt'
+                ll
+                }catch (Exception e) {
+                    echo 'failed'
+            }
+            }
+        }
+        }
+        stage('build1'){
+            when { expression { params.env == 'uat' }}
+            steps{
+                echo 'uat deployemnt'
+            }
+        
+        post{
+        success{
+            build('sampleTrigger2')
+        }
+        }
+    }
+    }
+}
